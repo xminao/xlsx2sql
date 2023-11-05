@@ -13,9 +13,9 @@ wb = openpyxl.load_workbook(xlsx_file)
 ws = wb.active
 
 # 读取DB_Design_TableColumn的模板文件列名
-xlsx_template_table_column = openpyxl.load_workbook('template_db_design.xlsx').active
+xlsx_template_table_column = openpyxl.load_workbook('[TEMPLATE]_DB_Design.xlsx')['TableColumn_XXX']
 template_title = []
-for row in xlsx_template_table_column.iter_rows(min_row=1, max_row=1, values_only=True):
+for row in xlsx_template_table_column.iter_rows(min_row=2, max_row=2, values_only=True):
     for col in row:
         template_title.append(col)
 print('模板列名:')
@@ -23,7 +23,7 @@ print(template_title)
 
 # 读取输入文件的文件列名
 title = []
-for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
+for row in ws.iter_rows(min_row=2, max_row=2, values_only=True):
     for col in row:
         title.append(col)
 print('输入文件列名:')
@@ -37,8 +37,8 @@ if template_title != title:
 # 读取表结构数据
 data = []
 for row in ws.iter_rows(min_row=2, values_only=True):
-    schema_user, table_name, column_name, data_type, nullable, db_pk, column_comment = row
-    data.append((schema_user, table_name, column_name, data_type, nullable, db_pk, column_comment))
+    schema_user, table_name, column_name, data_type, nullable, db_pk, column_comments, business_pk, column_description, sample_data, StatusReason, active_status = row
+    data.append((schema_user, table_name, column_name, data_type, nullable, db_pk, column_comments, business_pk, column_description, sample_data, StatusReason, active_status))
 
 print('输入表数据：')
 print(data)
@@ -104,7 +104,9 @@ for sch_k, sch_v in schema_dict.items():
                 nullable = ',' if col[1][1] == 'Y' else ' NOT NULL,'
             else:
                 nullable = '' if col[1][1] == 'Y' else ' NOT NULL'
-            comment = '' if col[1][3] == '' else ' -- ' + col[1][3]
+            comment = ''
+            if col[1][3] is not None:
+                comment = '' if col[1][3] == '' else ' -- ' + col[1][3]
             content += col[0] + ' ' + col[1][0] + nullable + comment + '\n\t'
             if col[1][2] == 'Y':
                 pk += col[0] + ', '
