@@ -1,12 +1,29 @@
+'''
+-*- coding: utf-8 -*-
+@File: xlsx2sql.py
+@Author: Minhao
+@Desc: 用于根据DB_Design模板文件生成对应建表语句
+@Time: 2023/11/04
+
+'''
+
 import openpyxl
 import sys
 import os
+import time
 
+# 模板文件
 TEMPLATE_DB_DESIGN = '.\\template\\[TEMPLATE]_DB_Design.xlsx'
 TEMPLATE_SQL = '.\\template\\template_sql.sql'
+TEMPLATE_SCRIPT = '.\\template\\template_script.sql'
+# 输入输出目录
 INPUT_PATH = '.\\input'
 OUTPUT_PATH = '.\\output'
+# 输入文件后缀，用于校验
 INPUT_EXTENDSION = 'DB_Design.xlsx'
+# 输出日志(待完成)
+LOG_PATH = '.\\logs'
+LOG_FORMAT = '%Y%m%d-%H%M%S'
 
 """
     校验文件的列名格式与模板是否一致
@@ -14,7 +31,7 @@ INPUT_EXTENDSION = 'DB_Design.xlsx'
 """
 def check_file_format(file_path: str):
     # 读取DB_Design_TableColumn的模板文件列名
-    template_file = openpyxl.load_workbook(TEMPLATE_DB_DESIGN).active
+    template_file = openpyxl.load_workbook(TEMPLATE_DB_DESIGN)['TableColumn']
     template_title = []
     for row in template_file.iter_rows(min_row=2, max_row=2, values_only=True):
         for col in row:
@@ -23,7 +40,7 @@ def check_file_format(file_path: str):
     print(template_title)
 
     # 读取输入文件的列名
-    input_file_ws = openpyxl.load_workbook(file_path).active
+    input_file_ws = openpyxl.load_workbook(file_path)['TableColumn']
     input_title = []
     for row in input_file_ws.iter_rows(min_row=2, max_row=2, values_only=True):
         for col in row:
@@ -35,12 +52,22 @@ def check_file_format(file_path: str):
     if input_title != template_title:
         raise Exception(f"输入文件：{file_path} 格式与模板不一致")
 
+"""
+    检验输入文件内容：
+    1. Table_List的数据有效位有没有非法的（非数值）
+    2. Table_List有效的数据关键列是不是空（数据库名称，数据库，schema，表名）
+    3. Table_List有效的数据表名在TableColumn表有没有有效的合法数据字段
+    file_path: 输入文件的名（包括路径）
+"""
+def check_file_content(file_path):
+    # 读取DB_Design_TableList页
+    file_ws = openpyxl.load_workbook(file_path)['Table_List']
 
 """
     根据生成的schema字典数据集，生成SQL脚本
     schema_dict: 传入的字典数据集
 """
-def generate_sql_script(schema_dict: dict, filename: str):
+def generate_sql_script(schema_dict: dict, table_comment: dict, filename: str):
     # 读取SQL模板文件
     with open(TEMPLATE_SQL, 'r') as template_file:
         sql_template = template_file.read()
@@ -91,15 +118,31 @@ def generate_sql_script(schema_dict: dict, filename: str):
                 script = script.replace('[primary_key]', '')\
                                 .replace('\t\n);', ');')\
                                 .replace('&end', '')
+            print(f'表: {tb_k}')
+            if table_comment[tb_k] is not None:
+                script = script.replace('[table_comment]', table_comment[tb_k])
 
             sql_script += script + '\n\n'
 
-    # 提示用户输入输出SQL文件名
+    # 输出的SQL文件名
     output_sql_file = OUTPUT_PATH + '.\\' + os.path.splitext(filename)[0] + '.sql'
 
-    # 将SQL脚本保存到文件
+    # 将创建表的SQL脚本保存到文件
+    # with open(output_sql_file, 'w', encoding='utf-8') as sql_file:
+    #     sql_file.write(sql_script)
+
+    # print(f"SQL脚本已生成并保存到 {output_sql_file}")
+
+    # 生成一个SCRIPT（带大注释头）
+    # 读取SQL模板文件
+    with open(TEMPLATE_SCRIPT, 'r', encoding='utf-8') as template_script:
+        script_template = template_script.read()
+
+    sql_scripts = ''
+    sql_scripts = script_template.replace('[scripts]', sql_script)\
+                                    .replace('[created_date]', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
     with open(output_sql_file, 'w', encoding='utf-8') as sql_file:
-        sql_file.write(sql_script)
+        sql_file.write(sql_scripts)
 
     print(f"SQL脚本已生成并保存到 {output_sql_file}")
     return
@@ -124,7 +167,7 @@ def main():
                 print(f"File Format Error: {ex}")
 
             # 读取输入文件数据
-            input_file_ws = openpyxl.load_workbook(file_path).active
+            input_file_ws = openpyxl.load_workbook(file_path)['TableColumn']
             data = []
             illegal_data = []
             invalid_data = []
@@ -183,8 +226,19 @@ def main():
                     for col in tb_v:
                         print(f'\t- col: {col}')
 
+            # 读取Table_List，获取表名对应注释
+            table_comment = {}
+            table_list_ws = openpyxl.load_workbook(file_path)['Table_List']
+            for row in table_list_ws.iter_rows(min_row=3, values_only=True):
+                no, server_info, db_name, schema_user, classification, table_name, table_description, table_comments_detail, data_scope, num_rows, StatusReason, active_status = row
+                if active_status == 1:
+                    table_comment[table_name] = table_description
+            print('表注释：')
+            for tc_k, tc_v in table_comment.items():
+                print(f"table:{tc_k}, comment:{tc_v}")
+
             # 生成SQL脚本
-            generate_sql_script(schema_dict, filename)
+            generate_sql_script(schema_dict, table_comment, filename)
 
 if __name__ == "__main__":
     main()
