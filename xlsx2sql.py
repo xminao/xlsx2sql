@@ -12,45 +12,76 @@ import sys
 import os
 import time
 
+# 生成的脚本头内容
+SCRIPT_CONTENT = ''
+SCRIPT_AUTHOR = ''
+SCRIPT_VERSION = 'v1.0'
+
 # 模板文件
 TEMPLATE_DB_DESIGN = '.\\template\\[TEMPLATE]_DB_Design.xlsx'
 TEMPLATE_SQL = '.\\template\\template_sql.sql'
 TEMPLATE_SCRIPT = '.\\template\\template_script.sql'
+
 # 输入输出目录
 INPUT_PATH = '.\\input'
 OUTPUT_PATH = '.\\output'
+
 # 输入文件后缀，用于校验
 INPUT_EXTENDSION = 'DB_Design.xlsx'
+
 # 输出日志(待完成)
 LOG_PATH = '.\\logs'
 LOG_FORMAT = '%Y%m%d-%H%M%S'
 
 """
-    校验文件的列名格式与模板是否一致
+    校验文件的格式与模板是否一致：
+    1. 列名以及顺序是否一致
     file_path: 输入文件的名（包括路径）
 """
 def check_file_format(file_path: str):
-    # 读取DB_Design_TableColumn的模板文件列名
-    template_file = openpyxl.load_workbook(TEMPLATE_DB_DESIGN)['TableColumn']
-    template_title = []
-    for row in template_file.iter_rows(min_row=2, max_row=2, values_only=True):
-        for col in row:
-            template_title.append(col)
-    print('模板列名:')
-    print(template_title)
+    # 确认输入文件存在 Table_List页 和 TableColumn页
+    input_wb = openpyxl.load_workbook(file_path)
+    if ('Table_List' not in input_wb.sheetnames) or ('TableColumn' not in input_wb.sheetnames):
+        raise Exception(f"请确认 {file_path} 存在 Table_List 和 TableColumn Sheet页.")
 
-    # 读取输入文件的列名
-    input_file_ws = openpyxl.load_workbook(file_path)['TableColumn']
-    input_title = []
-    for row in input_file_ws.iter_rows(min_row=2, max_row=2, values_only=True):
+    # 验证Table_List列名以及顺序
+    # 1. 读取模板 DB_Design.xlsx 的 Table_List页 列名
+    template_table_ws = openpyxl.load_workbook(TEMPLATE_DB_DESIGN)['Table_List']
+    template_table_ws_title = []
+    for row in template_table_ws.iter_rows(min_row=2, max_row=2, values_only=True):
         for col in row:
-            input_title.append(col)
-    print('输入文件列名:')
-    print(input_title)
+            template_table_ws_title.append(col)
 
-    # 判断输入文件列名是否与模板一致
-    if input_title != template_title:
-        raise Exception(f"输入文件：{file_path} 格式与模板不一致")
+    # 2. 读取输入文件的 Table_List页 列名
+    input_table_ws = openpyxl.load_workbook(file_path)['Table_List']
+    input_table_ws_title = []
+    for row in input_table_ws.iter_rows(min_row=2, max_row=2, values_only=True):
+        for col in row:
+            input_table_ws_title.append(col)
+
+    # 3. 判断输入文件列名以及顺序是否与模板一致
+    if template_table_ws_title != input_table_ws_title:
+        raise Exception(f"输入文件 {file_path} 的 Table_List 页格式与模板不一致.")
+
+    # 验证TableColumn列名以及顺序
+    # 1. 读取模板 DB_Design.xlsx 的 TableColumn页 列名
+    template_column_ws = openpyxl.load_workbook(TEMPLATE_DB_DESIGN)['TableColumn']
+    template_column_ws_title = []
+    for row in template_column_ws.iter_rows(min_row=2, max_row=2, values_only=True):
+        for col in row:
+            template_column_ws_title.append(col)
+
+    # 2. 读取输入文件的 TableColumn页 列名
+    input_column_ws = openpyxl.load_workbook(file_path)['TableColumn']
+    input_column_ws_title = []
+    for row in input_column_ws.iter_rows(min_row=2, max_row=2, values_only=True):
+        for col in row:
+            input_column_ws_title.append(col)
+
+    # 3. 判断输入文件列名以及顺序是否与模板一致
+    if template_column_ws_title != input_column_ws_title:
+        raise Exception(f"输入文件 {file_path} 的 TableColumn 页格式与模板不一致.")
+
 
 """
     检验输入文件内容：
@@ -140,7 +171,11 @@ def generate_sql_script(schema_dict: dict, table_comment: dict, filename: str):
 
     sql_scripts = ''
     sql_scripts = script_template.replace('[scripts]', sql_script)\
-                                    .replace('[created_date]', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+                                    .replace('[scripts_created_date]', time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))\
+                                    .replace('[scripts_content]', SCRIPT_CONTENT)\
+                                    .replace('[scripts_author]', SCRIPT_AUTHOR)\
+                                    .replace('[scripts_version]', SCRIPT_VERSION)
+                    
     with open(output_sql_file, 'w', encoding='utf-8') as sql_file:
         sql_file.write(sql_scripts)
 
@@ -165,6 +200,7 @@ def main():
                 check_file_format(file_path)
             except Exception as ex:
                 print(f"File Format Error: {ex}")
+                sys.exit(1)
 
             # 读取输入文件数据
             input_file_ws = openpyxl.load_workbook(file_path)['TableColumn']
@@ -173,6 +209,8 @@ def main():
             invalid_data = []
             for row_num, row in enumerate(input_file_ws.iter_rows(min_row=3, values_only=True), start=3):
                 schema_user, table_name, column_name, data_type, nullable, db_pk, column_comments, business_pk, column_description, sample_data, StatusReason, active_status = row
+                if all(cell is None for cell in row):
+                    pass
                 if type(active_status) is int: 
                     # 判断数据有效位是否有值
                     if schema_user is not None and table_name is not None and column_name is not None and nullable is not None:
