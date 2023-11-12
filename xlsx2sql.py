@@ -83,6 +83,7 @@ def check_file_format(file_path: str):
         raise Exception(f"输入文件 {file_path} 的 TableColumn 页格式与模板不一致.")
 
 
+
 """
     检验输入文件内容：
     1. Table_List的数据有效位有没有非法的（非数值）
@@ -90,9 +91,31 @@ def check_file_format(file_path: str):
     3. Table_List有效的数据表名在TableColumn表有没有有效的合法数据字段
     file_path: 输入文件的名（包括路径）
 """
-def check_file_content(file_path):
+def check_file_content(file_path: str):
+    # TODO 检查内容
     # 读取DB_Design_TableList页
-    file_ws = openpyxl.load_workbook(file_path)['Table_List']
+    input_table_list_ws = openpyxl.load_workbook(file_path)['Table_List']
+    input_table_names = set() # format: schema.table_name
+    for row_num, row in enumerate(input_table_list_ws.iter_rows(min_row=3, values_only=True), start=3):
+        _, _, _, schema_user, _ , table_name, _, _, _, _, _, active_status = row
+        if all(cell is None for cell in row):
+            continue
+        if schema_user is None or table_name is None:
+            raise Exception(f"页 Table_List, 行 {row_num} 未定义 schema_user 或 table_name.")
+        input_table_names.add(schema_user + '.' + table_name)
+
+    # 读取DB_Design_TableColumn页
+    input_table_column_ws = openpyxl.load_workbook(file_path)['TableColumn']
+    for row_num, row in enumerate(input_table_column_ws.iter_rows(min_row=3, values_only=True), start=3):
+        schema_user, table_name, _, _, _,  _, _, _, _, _ , _, _ = row
+        if all(cell is None for cell in row):
+            continue
+        if schema_user is None or table_name is None:
+            raise Exception(f"页 TableColumn, 行 {row_num} 未定义 schema_user 或 table_name.")
+        table_name = schema_user + '.' + table_name
+        if table_name not in input_table_names:
+            raise Exception(f"行 {row_num} 表名 {table_name} 未在 Table_List 中定义.")
+
 
 """
     根据生成的schema字典数据集，生成SQL脚本
@@ -198,6 +221,8 @@ def main():
             # 校验文件格式是否与模板一致
             try:
                 check_file_format(file_path)
+                check_file_content(file_path)
+                sys.exit(1)
             except Exception as ex:
                 print(f"File Format Error: {ex}")
                 sys.exit(1)
@@ -243,7 +268,7 @@ def main():
             # {'dbo': {'table1': [['col1', ['Y', 'N', 'COMMENT']], ['col2', ['Y', 'N', 'COMMENT']]]}}
             schema_dict = {}
             for row in data:
-                # if schmea not in dict, init
+                # if schema not in dict, init
                 schema = row[0]
                 table_dict = schema_dict.get(schema, {})
                 table = row[1]
