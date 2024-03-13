@@ -3,6 +3,17 @@ xlsx file to sql file
 
 
 
-1. 判断文件格式是否与模板一致（判断列名）
-2. 判断数据如果active_status有值，而关键位（schema, table_name, column_name等）没有值，则记作非法行，不作为转换数据。如果数据合法，有效位为0，记录为失效数据
-3. 非法的情况：非空列不是'Y'或者'N'；主键约束列的值不是'Y'或者'N'或者None；缺重要列；主键约束和非空约束冲突；
+目录说明：
+1、input 存放要生成建表脚本的DB_Design文档
+2、output 存放输出的脚本文件
+3、template 存放用于生成脚本的模板文件
+4、logs 存放生成日志
+
+规则说明：
+1、什么文件能够生成建表语句
+	1) 文件名后缀要以 _DB_Design.xlsx 结尾
+	2) 文件内容要和标准的CR文档 [TEMPLATE]_DB_Design.xlsx 一致
+2、重要列说明
+	1) active_status，1：有效，0：无效，不想生成的字段就填0
+	2) nullable，Y：可以为空，N：不能为空，不填默认可以为空
+	3) db_pk，Y：是主键，N：不是主键，不填默认不是主键
