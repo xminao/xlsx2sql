@@ -1,9 +1,11 @@
 /*-------------------------------------------------------------------------------------
-* 脚本内容：[scripts_content]
-* 作者：[scripts_author]
-* 创建日期：[scripts_created_date]
-* 版本号：[scripts_version]
+* 脚本内容：[script_content]
+* 作者：[script_author]
+* 数据库：[script_db]
+* 创建日期：[script_created_date]
+* 版本号：[script_version]
 * 修改记录：
+* - [script_author] [script_created_date] 创建脚本
 *-------------------------------------------------------------------------------------*/
 
-[scripts]
+[script]

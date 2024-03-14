@@ -1,0 +1,15 @@
+# 脚本使用者信息
+author: "Minhao"
+
+# 验证后缀（不要随意改动）
+file_extension: "_DB_Design.xlsx"
+
+# 模板文件名称（不要随意改动）
+templates:
+  db_design: "[TEMPLATE]_DB_Design.xlsx"
+  sql_script: "[TEMPLATE]_Script.sql"
+  mssql: "[TEMPLATE]_MSSQL.sql"
+  mysql: "[TEMPLATE]_MYSQL.sql"
+  oracle: "[TEMPLATE]_ORACLE.sql"
+  databricks: "[TEMPLATE]_DATABRICKS.sql"
+
